@@ -1,0 +1,23 @@
+{
+  "name": "paper-check",
+  "version": "1.0.0",
+  "description": "毕业论文格式检测与修复，集成 cite-formatter 文献引用模块。按 CNU《外国文学评论》2024修订版规范参考文献，支持任意学校规范文档输入。",
+  "author": "Callioper + shyuan",
+  "skills": [
+    "skills/cite-formatter"
+  ],
+  "requirements": {
+    "python": [
+      "python-docx>=0.8.0"
+    ],
+    "mcp": [
+      {
+        "name": "zotero-mcp",
+        "description": "Zotero 本地 MCP 服务器，用于查询文献元数据",
+        "transport": "http",
+        "url": "http://127.0.0.1:23120/mcp",
+        "optional": true
+      }
+    ]
+  }
+}
