@@ -143,7 +143,8 @@ python scripts/cross_check.py "论文.docx" --output cross_check.json
 3. 有没有格式正确的参考文档（规范文档）？→ 可以是格式正确的样本论文或学校的格式规范文件，用 parse_spec.py 提取规则
 4. 参考文献格式用什么标准？有没有 .csl 文件？
    - 有 .csl → 用 csl_parser.py 解析
-   - 没有但想要 → 搜索 https://www.zotero.org/styles 或触发 zotero-csl-builder 技能创建
+   - 没有但有投稿指南链接或参考文献格式截图 → 用 journal-csl-builder 从链接/图片生成 .csl
+   - 没有但想要 → 搜索 https://www.zotero.org/styles 或触发 journal-csl-builder 创建
    - 都不需要 → 默认 CNU《外国文学评论》2024修订版
 5. 用 Zotero 管理参考文献吗？有没有 .bib 文件？
    - 有 .bib → 用于引文验证 + 元数据丰富化 + PDF 路径提取
@@ -187,16 +188,19 @@ D:/path/to/论文名/
 ```
   用户有 .csl 文件？
     ├─ 是 → csl_parser.py 解析为 csl_rules.json
-    └─ 否 → 需要自定义格式？
-              ├─ 是 → 触发 journal-csl-builder 技能
-              │        （用户提供期刊格式说明/参考文献样例 → 生成 .csl 文件）
-              │        如果用户没有明确的格式要求，推荐先搜索 https://www.zotero.org/styles
-              └─ 否 → 使用默认 CNU《外国文学评论》2024修订版格式
+    └─ 否 → 有投稿指南链接或格式截图？
+              ├─ 是 → 触发 journal-csl-builder 技能，从链接/图片生成 .csl
+              │        生成后用 csl_parser.py 解析为规则
+              └─ 否 → 需要自定义格式？
+                        ├─ 是 → 触发 journal-csl-builder 技能（用户提供样例）
+                        │        或搜索 https://www.zotero.org/styles
+                        └─ 否 → 使用默认 CNU《外国文学评论》2024修订版格式
 ```
 
 **journal-csl-builder 触发条件**：当用户说"帮我做一个期刊的引用格式"、"这个期刊的 CSL"、
-"参考文献格式怎么做 Zotero 样式"，或 Step 0 第 4 问中用户选择"需要自定义格式"时，
-调用 `Skill("journal-csl-builder")` 生成 .csl 文件。生成后用 csl_parser.py 解析为规则。
+"参考文献格式怎么做 Zotero 样式"、"从这个链接生成 CSL"、"根据这个截图生成引用格式"，
+或 Step 0 第 4 问中用户选择"没有但有链接/截图"时，调用 `Skill("journal-csl-builder")`。
+用户提供期刊投稿指南网页链接或参考文献格式截图，journal-csl-builder 从中提取规则并生成 .csl 文件。
 
 ```bash
 # 如有规范文档（样本论文）
@@ -232,12 +236,14 @@ python scripts/fix_format.py "论文_copy.docx" --mode journal --output "输出�
 
 **无法自动修复（告知用户）**：页眉横线、目录更新、图片/公式位置
 
-### Step 5：引文验证（始终执行）
+### Step 5：引文验证
 
-引文验证始终执行，不需要用户额外确认：
+**执行前必须询问用户**：Step 0 中已问过 .bib 文件，但如果当时没确认，此处再次询问：
+> "你有 Zotero 导出的 .bib 文件吗？有的话可以用它验证引用完整性。
+> 没有的话我直接用外部数据库（OpenAlex/CrossRef）验证。"
 
 ```bash
-# Step 5a: 本地验证（如有 .bib）
+# Step 5a: 本地验证（如有 .bib，必做）
 python scripts/verify_local.py "论文_copy.docx" --bib refs.bib --output "输出目录/local_result.json"
 
 # Step 5b: 外部验证（始终执行，用免费数据源）

@@ -119,15 +119,131 @@ def generate_unified_report(
     doc.add_paragraph("")
 
     # -----------------------------------------------------------------
-    # Section 1: Format issues (with location + before/after)
+    # Section 0: Summary dashboard (总体概览)
     # -----------------------------------------------------------------
-    doc.add_heading("一、格式问题", level=2)
     issues = format_issues.get("issues", {})
+
+    # Count total issues by category
+    total_issues = sum(len(v) for v in issues.values())
+
+    # Count repair records
+    repair_count = len(repair_records) if repair_records else 0
+    fixed_categories = set()
+    if repair_records:
+        for rec in repair_records:
+            if not rec.get("error"):
+                fixed_categories.add(rec.get("category", ""))
+
+    # Summary table
+    doc.add_heading("总体概览", level=2)
+
+    summary_table = doc.add_table(rows=1, cols=4)
+    summary_table.style = "Table Grid"
+    shdr = summary_table.rows[0].cells
+    for cell, text in zip(shdr, ["类别", "检测到问题", "修复操作", "状态"]):
+        cell.text = text
+        cell.paragraphs[0].runs[0].bold = True
+        _set_cell_bg(cell, "D9E1F2")
+
+    # Map issue categories to Chinese names
+    cat_names = {
+        "page_setup": "页面设置",
+        "styles": "样式",
+        "paragraphs": "段落",
+        "tables": "表格",
+        "cover": "封面",
+        "abstract": "摘要",
+        "toc": "目录",
+        "headers_footers": "页眉页脚",
+        "acknowledgments": "致谢",
+        "appendices": "附录",
+        "citations": "参考文献",
+        "footnotes": "脚注",
+    }
+
+    # Map repair categories to fix descriptions
+    repair_desc = {
+        "page_setup": "页边距已修正",
+        "paragraphs": "字体字号行距已修正",
+        "sections": "章节标题已格式化",
+        "cover": "封面格式已修正",
+        "citations": "引用格式已规范化",
+        "footnotes": "脚注字体已修正",
+    }
+
+    for cat, items in issues.items():
+        count = len(items)
+        if count == 0:
+            continue
+        row = summary_table.add_row().cells
+        row[0].text = cat_names.get(cat, cat)
+        row[1].text = str(count)
+
+        if cat in fixed_categories:
+            row[2].text = repair_desc.get(cat, "已修复")
+            row[3].text = "已修复"
+            _set_cell_bg(row[3], "C6EFCE")  # Green
+        else:
+            row[2].text = "-"
+            row[3].text = "需人工处理"
+            _set_cell_bg(row[3], "FFEB9C")  # Yellow
+
+    # Add totals row
+    total_row = summary_table.add_row().cells
+    total_row[0].text = "合计"
+    total_row[0].paragraphs[0].runs[0].bold = True
+    total_row[1].text = str(total_issues)
+    total_row[1].paragraphs[0].runs[0].bold = True
+    fixed_count = sum(len(v) for k, v in issues.items() if k in fixed_categories)
+    total_row[2].text = f"{repair_count} 项修复操作"
+    total_row[3].text = f"已修复 {fixed_count} 项"
+    _set_cell_bg(total_row[0], "B4C7E7")
+    _set_cell_bg(total_row[1], "B4C7E7")
+    _set_cell_bg(total_row[2], "B4C7E7")
+    _set_cell_bg(total_row[3], "B4C7E7")
+
+    doc.add_paragraph("")
+
+    # Repair details table
+    if repair_records:
+        doc.add_heading("修复明细", level=3)
+        rtable = doc.add_table(rows=1, cols=5)
+        rtable.style = "Table Grid"
+        rhdr = rtable.rows[0].cells
+        for cell, text in zip(rhdr, ["类别", "项目", "位置", "修复前", "修复后"]):
+            cell.text = text
+            cell.paragraphs[0].runs[0].bold = True
+            _set_cell_bg(cell, "E2EFDA")
+
+        for rec in repair_records:
+            if rec.get("error"):
+                continue
+            row = rtable.add_row().cells
+            row[0].text = cat_names.get(rec.get("category", ""), rec.get("category", ""))
+            row[1].text = rec.get("item", "")
+            row[2].text = rec.get("location", "")
+            before = rec.get("before", "")
+            after = rec.get("after", "")
+            row[3].text = str(before) if before else "-"
+            row[4].text = str(after) if after else "-"
+            # Color code the after column
+            if after:
+                _set_cell_bg(row[4], "C6EFCE")
+
+        doc.add_paragraph("")
+
+    # -----------------------------------------------------------------
+    # Section 2: Remaining format issues (detailed)
+    # -----------------------------------------------------------------
     if any(issues.values()):
+        doc.add_heading("未修复格式问题明细", level=2)
         for category, items in issues.items():
             if not items:
                 continue
-            doc.add_heading(f"  {category}", level=3)
+            # Only show categories that were NOT fixed
+            if category in fixed_categories:
+                continue
+            doc.add_heading(f"  {cat_names.get(category, category)}", level=3)
             table = doc.add_table(rows=1, cols=6)
             table.style = "Table Grid"
             hdr = table.rows[0].cells
@@ -143,40 +259,12 @@ def generate_unified_report(
                 row[3].text = item.get("expected", "")
                 row[4].text = item.get("actual", "")
                 row[5].text = item.get("suggestion", "")
-    else:
-        doc.add_paragraph("未发现格式问题")
-
-    doc.add_paragraph("")
-
-    # -----------------------------------------------------------------
-    # Section 1b: Repair records (before/after comparison)
-    # -----------------------------------------------------------------
-    if repair_records:
-        doc.add_heading("  修复记录（修复前 → 修复后）", level=3)
-        rtable = doc.add_table(rows=1, cols=5)
-        rtable.style = "Table Grid"
-        rhdr = rtable.rows[0].cells
-        for cell, text in zip(rhdr, ["类别", "项目", "位置", "修复前", "修复后"]):
-            cell.text = text
-            cell.paragraphs[0].runs[0].bold = True
-            _set_cell_bg(cell, "E2EFDA")
-        for rec in repair_records:
-            if rec.get("error"):
-                continue
-            row = rtable.add_row().cells
-            row[0].text = rec.get("category", "")
-            row[1].text = rec.get("item", "")
-            row[2].text = rec.get("location", "")
-            before = rec.get("before", "")
-            after = rec.get("after", "")
-            row[3].text = str(before) if before else ""
-            row[4].text = str(after) if after else ""
         doc.add_paragraph("")
 
     # -----------------------------------------------------------------
-    # Section 2: Citation format report (from cite-formatter)
+    # Section 3: Citation format report
     # -----------------------------------------------------------------
-    doc.add_heading("二、参考文献格式报告", level=2)
+    doc.add_heading("参考文献格式报告", level=2)
 
     if not citation_results:
         doc.add_paragraph("✅ 未检测到参考文献章节")
@@ -232,7 +320,7 @@ def generate_unified_report(
     # -----------------------------------------------------------------
     # Section 3: Footnote citation report
     # -----------------------------------------------------------------
-    doc.add_heading("三、脚注格式报告", level=2)
+    doc.add_heading("脚注格式报告", level=2)
 
     if not footnote_results:
         doc.add_paragraph("✅ 未检测到脚注引用问题")
@@ -280,7 +368,7 @@ def generate_unified_report(
     # Section 4: Citation verification report
     # -----------------------------------------------------------------
     if verification_results:
-        doc.add_heading("四、引文完整性校验报告", level=2)
+        doc.add_heading("引文完整性校验报告", level=2)
 
         # Local verification
         local = verification_results.get("local", {})
