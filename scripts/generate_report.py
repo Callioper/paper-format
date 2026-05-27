@@ -32,6 +32,20 @@ def _set_cell_bg(cell, hex_color: str):
     tcPr.append(shd)
 
 
+def _apply_report_font(run, size_pt: float = 10.5):
+    """Apply report default font to a run: 宋体 (CJK) + Times New Roman (Latin)."""
+    rPr = run._r.get_or_add_rPr()
+    rFonts = rPr.find(qn('w:rFonts'))
+    if rFonts is None:
+        rFonts = OxmlElement('w:rFonts')
+        rPr.insert(0, rFonts)
+    rFonts.set(qn('w:eastAsia'), '宋体')
+    rFonts.set(qn('w:ascii'), 'Times New Roman')
+    rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+    if size_pt:
+        run.font.size = Pt(size_pt)
+
+
 def _add_heading_row(table, text: str, level: int = 1):
     """Add a section heading row to a table."""
     row = table.add_row()
@@ -75,6 +89,21 @@ def generate_unified_report(
     section.page_width = Cm(29.7)
     section.page_height = Cm(21.0)
     section.orientation = 1  # landscape
+
+    # Set default fonts: 宋体 for Chinese, Times New Roman for non-Chinese
+    try:
+        normal_style = doc.styles['Normal']
+        normal_style.font.size = Pt(10.5)
+        rPr = normal_style.font._element
+        rFonts = rPr.find(qn('w:rFonts'))
+        if rFonts is None:
+            rFonts = OxmlElement('w:rFonts')
+            rPr.insert(0, rFonts)
+        rFonts.set(qn('w:eastAsia'), '宋体')
+        rFonts.set(qn('w:ascii'), 'Times New Roman')
+        rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+    except Exception:
+        pass
 
     # Title
     title = doc.add_heading("论文格式检测与修复报告", level=1)
