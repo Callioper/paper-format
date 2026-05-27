@@ -326,10 +326,16 @@ def fix_paper(
         "copy_path": str(copy_path),
         "repaired_path": str(repaired_path),
         "records": records,
+        "thesis_stem": thesis.stem,
     }
 
 
 def main():
+    # Ensure skill root is on sys.path for cross-module imports
+    skill_root = str(Path(__file__).resolve().parents[1])
+    if skill_root not in sys.path:
+        sys.path.insert(0, skill_root)
+
     parser = argparse.ArgumentParser(description="One-pass paper fix with output directory")
     parser.add_argument("thesis", help="Path to thesis .docx")
     parser.add_argument("--mode", "-m", default="journal", choices=["journal", "thesis"])
@@ -343,12 +349,43 @@ def main():
         print(f"Error: {result['error']}")
         sys.exit(1)
 
+    output_dir = Path(result['output_dir'])
+    repaired = result['repaired_path']
+    stem = result.get('thesis_stem', 'paper')
+
     print(f"Output directory: {result['output_dir']}")
     print(f"Working copy: {result['copy_path']}")
-    print(f"Repaired file: {result['repaired_path']}")
+    print(f"Repaired file: {repaired}")
     print(f"Repair actions: {len(result['records'])}")
     for r in result['records']:
         print(f"  - {r.get('category')}/{r.get('item')}: {r.get('note', '')}")
+
+    # Run format check on repaired file
+    try:
+        from scripts.check_format import check_format
+        check_result = check_format(repaired, mode=args.mode)
+        check_path = output_dir / "check_result.json"
+        check_path.write_text(json.dumps(check_result, ensure_ascii=False, indent=2), encoding="utf-8")
+        total = sum(len(v) for v in check_result.get("issues", {}).values())
+        print(f"\nRemaining issues: {total}")
+    except Exception as e:
+        print(f"\nCheck failed: {e}")
+
+    # Generate HTML report
+    try:
+        from scripts.generate_html_report import generate_html_report
+        html = generate_html_report(
+            result['copy_path'], repaired,
+            check_result if 'check_result' in dir() else {},
+            [],
+            repair_records=result['records'],
+            mode=args.mode,
+        )
+        html_path = output_dir / f"{stem}_report.html"
+        html_path.write_text(html, encoding="utf-8")
+        print(f"HTML report: {html_path}")
+    except Exception as e:
+        print(f"HTML report failed: {e}")
 
 
 if __name__ == "__main__":
