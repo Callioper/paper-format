@@ -282,10 +282,15 @@ generate_template(mode="thesis", output_path="template.docx")
 | [sashavegal/paper-check](https://clawhub.ai/sashavegal/paper-check) | 原始 paper-check 项目的格式检测流程、三线表检测、修复记录结构、对比报告设计 |
 | [ganzhi-black/humanities-thesis-skill](https://github.com/ganzhi-black/humanities-thesis-skill) | 引文验证的数据源架构（OpenAlex/CrossRef/知网/万方并行查询）、防幻觉规则引擎、知网/万方 HTML 抓取实现 |
 | [Gostyan/docx-skill-4-cn-paper](https://github.com/Gostyan/docx-skill-4-cn-paper) | 中文学术论文 .docx 模板生成的预配置方案、样式定义参考 |
-| [citation-checker](https://clawhub.ai/) (Zephyr Fang) | 引文逐字核对功能设计：PDF 出处比对、截图证据嵌入 Excel、OCR 扫描版支持 |
+| citation-checker（[twobabycoach](https://github.com/twobabycoach)） | 引文逐字核对功能设计：PDF 出处比对、截图证据嵌入 Excel、OCR 扫描版支持 |
+| zotero-csl-builder（[twobabycoach](https://github.com/twobabycoach)） | CSL 引用样式构建与校验思路，启发本项目的 CSL 三阶段校验流水线与 `journal-csl-builder` 流程 |
 | [retorquere/zotero-better-bibtex](https://github.com/retorquere/zotero-better-bibtex) | Better BibTeX .bib 文件解析、file 字段 PDF 路径提取、引文元数据丰富化方案 |
 | [citation-style-language/styles](https://github.com/citation-style-language/styles) | GB/T 7714-2015 CSL 文件，用于 CSL 解析器开发和测试 |
 | [redleafnew/Chinese-STD-GB-T-7714-related-csl](https://github.com/redleafnew/Chinese-STD-GB-T-7714-related-csl) | 中文 CSL 样式参考 |
+
+## 特别致谢
+
+特别感谢 **[twobabycoach](https://github.com/twobabycoach)** —— 其开发的 **citation-checker**（引文逐字核对）与 **zotero-csl-builder**（CSL 样式构建）两个项目为本项目的引文核对与 CSL 处理流程提供了关键设计参考。
 
 ## License
 
