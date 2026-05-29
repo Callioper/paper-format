@@ -54,26 +54,39 @@ def pdf_to_pngs(pdf_path: str, out_dir: str, dpi: int = 120) -> list[str]:
                         str(Path(out_dir) / stem)], check=True, timeout=120,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return sorted(str(p) for p in Path(out_dir).glob(f"{stem}*.png"))
+    # pdf2image 缺失（ImportError）与真实转换失败要区分：前者表示"没有转换器"，
+    # 应安静返回 []；后者（PDF 损坏等）应让异常向上传播，由 render_preview 报告，
+    # 不要把两者都吞成空列表而让调用方误以为只是缺工具。
     try:
         from pdf2image import convert_from_path
-        imgs = convert_from_path(pdf_path, dpi=dpi)
-        out = []
-        for i, im in enumerate(imgs, 1):
-            fp = Path(out_dir) / f"{stem}-{i}.png"
-            im.save(str(fp)); out.append(str(fp))
-        return out
-    except Exception:
+    except ImportError:
         return []
+    imgs = convert_from_path(pdf_path, dpi=dpi)
+    out = []
+    for i, im in enumerate(imgs, 1):
+        fp = Path(out_dir) / f"{stem}-{i}.png"
+        im.save(str(fp))
+        out.append(str(fp))
+    return out
 
 
 def render_preview(docx_path: str, out_dir: str, soffice_path: str | None = None) -> dict:
-    pdf = render_to_pdf(docx_path, out_dir, soffice_path)
+    # soffice 崩溃/超时也应落到 ok:False（而非抛裸 traceback），兑现优雅降级契约。
+    try:
+        pdf = render_to_pdf(docx_path, out_dir, soffice_path)
+    except (subprocess.SubprocessError, OSError) as e:
+        return {"ok": False, "reason": f"LibreOffice 渲染失败：{e}", "pdf": None, "pngs": []}
     if not pdf:
         return {"ok": False, "reason": "LibreOffice(soffice) 不可用，无法渲染；请安装或在 Word 中人工复核",
                 "pdf": None, "pngs": []}
-    pngs = pdf_to_pngs(pdf, out_dir)
-    return {"ok": True, "pdf": pdf, "pngs": pngs,
-            "note": "" if pngs else "已生成 PDF；未找到 pdftoppm/pdf2image，未能转 PNG，可直接查看 PDF"}
+    # PNG 转换是尽力而为：失败不影响"已出 PDF"，但要把原因写进 note，不静默吞掉。
+    try:
+        pngs = pdf_to_pngs(pdf, out_dir)
+        note = "" if pngs else "已生成 PDF；未找到 pdftoppm/pdf2image，未能转 PNG，可直接查看 PDF"
+    except Exception as e:
+        pngs = []
+        note = f"已生成 PDF；PNG 转换失败（{e}），可直接查看 PDF"
+    return {"ok": True, "pdf": pdf, "pngs": pngs, "note": note}
 
 
 def main() -> None:
