@@ -60,3 +60,22 @@ def test_clean_doc_has_no_issues(tmp_path):
     doc.add_paragraph("正常段落二。")
     res = detect_fake_layout(_doc_to_tmp(doc, tmp_path))
     assert res["total"] == 0
+
+
+from scripts.check_fake_layout import clean_fake_layout
+
+
+def test_clean_collapses_blanks_and_strips_leading_spaces(tmp_path):
+    doc = Document()
+    doc.add_paragraph("正文第一段。")
+    doc.add_paragraph(""); doc.add_paragraph(""); doc.add_paragraph("")
+    doc.add_paragraph("　　第二段带全角空格。")
+    n = clean_fake_layout(doc)
+    out = tmp_path / "cleaned.docx"; doc.save(str(out))
+    d2 = Document(str(out))
+    texts = [p.text for p in d2.paragraphs]
+    # 连续空段被折叠为至多 1 个
+    assert "\n".join(texts).count("\n\n\n") == 0
+    # 段首全角空格被去除
+    assert any(t.startswith("第二段") for t in texts)
+    assert n >= 2  # 至少清理了 空段折叠 + 段首空格

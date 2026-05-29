@@ -78,6 +78,41 @@ def detect_fake_layout(docx_path: str) -> dict:
     return {"file": docx_path, "total": len(issues), "issues": issues}
 
 
+def clean_fake_layout(doc) -> int:
+    """In-place 清理可安全自动处理的假排版，返回处理动作数。
+
+    只做高确定性的清理：折叠连续空段为单个、去段首手工空格、去行尾空格。
+    段内手工换行(w:br)不自动删（可能有意），仅由 detect 标记待人工确认。
+    """
+    actions = 0
+
+    # 1) 折叠连续空段：保留每段连续空白的第 1 个，删除其余
+    prev_blank = False
+    for p in list(doc.paragraphs):
+        blank = not p.text.strip()
+        if blank and prev_blank:
+            p._p.getparent().remove(p._p)
+            actions += 1
+        prev_blank = blank
+
+    # 2) 段首手工空格 + 3) 行尾空格：改写首/尾 run 文本
+    for p in doc.paragraphs:
+        if not p.text.strip() or not p.runs:
+            continue
+        first = p.runs[0]
+        stripped = first.text.lstrip(_LEADING_SPACE)
+        if stripped != first.text:
+            first.text = stripped
+            actions += 1
+        last = p.runs[-1]
+        rstripped = last.text.rstrip(_LEADING_SPACE)
+        if rstripped != last.text:
+            last.text = rstripped
+            actions += 1
+
+    return actions
+
+
 def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")

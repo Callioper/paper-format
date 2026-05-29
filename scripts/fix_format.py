@@ -486,6 +486,19 @@ def fix_format(
         records.append({"category": "citations", "item": "reference_font", "error": str(e)})
 
     # ---------------------------------------------------------------
+    # 假排版清理（借鉴 cn-paper-typesetter）：在统一样式之后、保存之前清掉
+    # 空段堆叠、段首手工空格、行尾游离空格——它们会让样式系统失效。
+    # ---------------------------------------------------------------
+    try:
+        from scripts.check_fake_layout import clean_fake_layout
+        fake_actions = clean_fake_layout(doc)
+        if fake_actions:
+            records.append({"category": "paragraphs", "item": "fake_layout_cleanup",
+                            "location": "全文", "note": f"清理假排版 {fake_actions} 处（空段折叠/段首空格/行尾空格）"})
+    except Exception as e:
+        records.append({"category": "paragraphs", "item": "fake_layout_cleanup", "error": str(e)})
+
+    # ---------------------------------------------------------------
     # Save
     # ---------------------------------------------------------------
     try:
