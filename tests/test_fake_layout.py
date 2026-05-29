@@ -6,7 +6,7 @@ from docx import Document
 from docx.shared import Pt
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-from scripts.check_fake_layout import detect_fake_layout
+from scripts.check_fake_layout import detect_fake_layout, clean_fake_layout
 
 
 def _doc_to_tmp(doc, tmp_path):
@@ -60,9 +60,6 @@ def test_clean_doc_has_no_issues(tmp_path):
     doc.add_paragraph("正常段落二。")
     res = detect_fake_layout(_doc_to_tmp(doc, tmp_path))
     assert res["total"] == 0
-
-
-from scripts.check_fake_layout import clean_fake_layout
 
 
 def test_clean_collapses_blanks_and_strips_leading_spaces(tmp_path):
