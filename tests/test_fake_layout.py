@@ -40,10 +40,18 @@ def test_detects_leading_manual_spaces(tmp_path):
 def test_detects_intra_paragraph_break(tmp_path):
     doc = Document()
     p = doc.add_paragraph("第一行")
-    br = OxmlElement("w:br"); p.runs[0]._r.append(br)
+    br = OxmlElement("w:br")
+    p.runs[0]._r.append(br)
     p.add_run("被手工换行挤到第二行")
     res = detect_fake_layout(_doc_to_tmp(doc, tmp_path))
     assert any(i["type"] == "intra_para_break" for i in res["issues"])
+
+
+def test_detects_trailing_space(tmp_path):
+    doc = Document()
+    doc.add_paragraph("这段行尾有游离空格。   ")
+    res = detect_fake_layout(_doc_to_tmp(doc, tmp_path))
+    assert any(i["type"] == "trailing_space" for i in res["issues"])
 
 
 def test_clean_doc_has_no_issues(tmp_path):

@@ -21,7 +21,7 @@ if str(_THIS.parents[1]) not in sys.path:
 from docx import Document
 from docx.oxml.ns import qn
 
-_LEADING_SPACE = ("　", " ", "\t")  # 全角空格 / 半角空格 / 制表符
+_LEADING_SPACE = "　 \t"  # 全角空格 / 半角空格 / 制表符（单字符成员判断 + lstrip 两用）
 
 
 def _is_blank(p) -> bool:
@@ -57,7 +57,7 @@ def detect_fake_layout(docx_path: str) -> dict:
         if not t.strip():
             continue
         if t[:1] in _LEADING_SPACE:
-            n = len(t) - len(t.lstrip("".join(_LEADING_SPACE)))
+            n = len(t) - len(t.lstrip(_LEADING_SPACE))
             issues.append({
                 "type": "manual_indent_spaces", "location": f"段 {i}",
                 "detail": f"段首 {n} 个手工空格，疑似冒充首行缩进/居中：{t[:20]!r}",
