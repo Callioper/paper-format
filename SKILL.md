@@ -387,6 +387,19 @@ python scripts/check_language.py "论文_copy.docx" --rules references/language_
 
 **修正原则**：只修正明确的符号错误，不改动语义。`autofix_safe: false` 的规则标记为"建议复核"而非直接修改。按严重程度排序：P1（必须修复）> P2（应当修复）> P3（建议修复）。
 
+### Step 4.6：假排版清理
+
+"假排版"指用排版无关手段冒充版式（空段堆叠、段首手工空格、段内手工换行、行尾空格），
+会让样式系统失效、跨设备错位（借鉴 cn-paper-typesetter）。
+
+**这一步通常无需手动跑**：`fix_format`（以及一键入口 `fix_paper`）会在 Step 5 统一样式之后、保存之前**自动**清理高确定性项（折叠连续空段、去段首/行尾手工空格），并记入修复记录。段内手工换行(w:br)只标记不自动删（可能是有意换行，需人工确认）。
+
+仅当你想在修复前**单独查看**有哪些假排版（生成报告、决定是否人工干预）时，才单独运行检测脚本：
+
+```bash
+python scripts/check_fake_layout.py "论文_copy.docx" --output "输出目录/fake_layout.json"
+```
+
 ### Step 5：自动修复
 
 **标准修复**（python-docx）：
@@ -514,7 +527,13 @@ python scripts/verify_quotes.py "论文_copy.docx" --sources "书.pdf:1-100" --o
 修复完成后，对输出文档做一轮视觉层面的校验，不能只依赖 JSON 报告。
 
 **复核方式**：
-1. 用 python-docx 将修复后的文档按页渲染成图片（或提取关键段落的格式属性）
+1. 用 `render_preview.py` 通过 LibreOffice 把修复后的文档渲染成 PDF/PNG 页图，逐页肉眼检查
+   （python-docx 无法渲染图片，必须用 LibreOffice；soffice 缺失时降级为提取关键段落格式属性 + 提示在 Word 中人工复核）：
+
+```bash
+python scripts/render_preview.py "输出目录/论文_repaired.docx" --out-dir "输出目录/_preview"
+```
+
 2. 逐页检查以下项目：
 
 | 检查项 | 说明 |
@@ -632,6 +651,8 @@ python scripts/generate_report.py "输出目录/论文_copy.docx" "输出目录/
 | `check_format.py` | 格式检测（含引用+脚注） | `论文.docx --output result.json` |
 | `check_language.py` | 语言/符号检查（规则引擎，16 类规则族） | `论文.docx --rules language_rules.yaml --output result.json` |
 | `check_content.py` | 内容结构检查（必需章节、关键词、缩略语） | `论文.docx --mode thesis --output result.json` |
+| `check_fake_layout.py` | 假排版检测/清理（空段堆叠、手工空格、段内换行） | `论文.docx --output result.json` |
+| `render_preview.py` | 视觉渲染复核（LibreOffice docx→PDF→PNG） | `论文.docx --out-dir _preview` |
 | `check_references_enhanced.py` | 增强引用检查（DOI/字段/URL） | `论文.docx --bib refs.bib --check-urls --output result.json` |
 | `fix_paper.py` | **一键编排**：建目录+复制+修复+记录改动+生成 HTML 报告（推荐入口） | `论文.docx --mode journal [--spec][--bib]` |
 | `fix_format.py` | 格式修复（修复记录作为返回值，CLI 不落盘） | `论文_copy.docx --mode journal --output repaired.docx` |

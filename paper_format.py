@@ -9,6 +9,8 @@ Usage:
     python paper_format.py fix      thesis.docx [--output repaired.docx]
     python paper_format.py lang     thesis.docx --rules references/language_rules.yaml   # 16 类中英符号检查
     python paper_format.py content  thesis.docx [--mode thesis]                          # 内容结构检查
+    python paper_format.py fake-layout 论文.docx [--output result.json]      # 假排版检测
+    python paper_format.py render      论文.docx [--out-dir _preview]          # 视觉渲染复核
     python paper_format.py footnotes thesis.docx [--output footnotes.json]
     python paper_format.py report   original.docx repaired.docx report.docx
     python paper_format.py html-report original.docx repaired.docx --output report.html
@@ -68,6 +70,12 @@ def main():
     elif command == "content":
         from scripts.check_content import main as content_main
         content_main()
+    elif command == "fake-layout":
+        from scripts.check_fake_layout import main as fake_main
+        fake_main()
+    elif command == "render":
+        from scripts.render_preview import main as render_main
+        render_main()
     elif command == "footnotes":
         from scripts.extract_footnotes import main as fn_main
         fn_main()
@@ -116,8 +124,9 @@ def main():
         print(__doc__)
     else:
         print(f"Unknown command: {command}")
-        print("Available: paper, check, fix, lang, content, footnotes, report, html-report, "
-              "template, verify, refs, cross, quotes, spec, csl, validate-csl, lint-csl, cite")
+        print("Available: paper, check, fix, lang, content, fake-layout, render, footnotes, "
+              "report, html-report, template, verify, refs, cross, quotes, spec, csl, "
+              "validate-csl, lint-csl, cite")
         sys.exit(1)
 
 
