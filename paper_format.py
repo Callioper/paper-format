@@ -4,16 +4,25 @@
 Works with any AI agent (Claude Code, Hermes, OpenClaw, Codex, etc.)
 
 Usage:
-    python paper_check.py check  thesis.docx [--mode journal] [--spec spec.json]
-    python paper_check.py fix    thesis.docx [--output repaired.docx]
-    python paper_check.py report original.docx repaired.docx report.docx
-    python paper_check.py template [--mode thesis] [--output template.docx]
-    python paper_check.py verify thesis.docx --bib refs.bib
-    python paper_check.py verify thesis.docx --sources openalex,crossref
-    python paper_check.py cross  thesis.docx
-    python paper_check.py quotes thesis.docx --sources "book.pdf:1-50"
-    python paper_check.py spec   sample.docx [--output spec.json]
-    python paper_check.py csl    style.csl [--output rules.json]
+    python paper_format.py paper   thesis.docx [--mode journal] [--spec spec.json] [--bib refs.bib]   # 一键修复+报告（推荐）
+    python paper_format.py check    thesis.docx [--mode journal] [--spec spec.json]
+    python paper_format.py fix      thesis.docx [--output repaired.docx]
+    python paper_format.py lang     thesis.docx --rules references/language_rules.yaml   # 16 类中英符号检查
+    python paper_format.py content  thesis.docx [--mode thesis]                          # 内容结构检查
+    python paper_format.py footnotes thesis.docx [--output footnotes.json]
+    python paper_format.py report   original.docx repaired.docx report.docx
+    python paper_format.py html-report original.docx repaired.docx --output report.html
+    python paper_format.py template [--mode thesis] [--output template.docx]
+    python paper_format.py verify   thesis.docx --bib refs.bib
+    python paper_format.py verify   thesis.docx --sources openalex,crossref
+    python paper_format.py refs     thesis.docx --bib refs.bib [--check-urls]
+    python paper_format.py cross    thesis.docx
+    python paper_format.py quotes   thesis.docx --sources "book.pdf:1-50"
+    python paper_format.py spec     sample.docx [--output spec.json]
+    python paper_format.py csl      style.csl [--output rules.json]
+    python paper_format.py validate-csl style.csl
+    python paper_format.py lint-csl style.csl
+    python paper_format.py cite     thesis.docx --bib refs.bib [--output report.docx]
 """
 
 from __future__ import annotations
@@ -44,12 +53,36 @@ def main():
     # Pass remaining args to the sub-command
     sys.argv = [sys.argv[0]] + sys.argv[2:]
 
-    if command == "check":
+    if command == "paper":
+        from scripts.fix_paper import main as paper_main
+        paper_main()
+    elif command == "check":
         from scripts.check_format import main as check_main
         check_main()
     elif command == "fix":
         from scripts.fix_format import main as fix_main
         fix_main()
+    elif command in ("lang", "language"):
+        from scripts.check_language import main as lang_main
+        lang_main()
+    elif command == "content":
+        from scripts.check_content import main as content_main
+        content_main()
+    elif command == "footnotes":
+        from scripts.extract_footnotes import main as fn_main
+        fn_main()
+    elif command in ("html-report", "html"):
+        from scripts.generate_html_report import main as html_main
+        html_main()
+    elif command in ("refs", "refs-enhanced"):
+        from scripts.check_references_enhanced import main as refs_main
+        refs_main()
+    elif command == "validate-csl":
+        from scripts.validate_csl import main as vcsl_main
+        vcsl_main()
+    elif command == "lint-csl":
+        from scripts.lint_csl_semantics import main as lcsl_main
+        lcsl_main()
     elif command == "report":
         from scripts.generate_report import main as report_main
         report_main()
@@ -83,7 +116,8 @@ def main():
         print(__doc__)
     else:
         print(f"Unknown command: {command}")
-        print(f"Available: check, fix, report, template, verify, cross, quotes, spec, csl, cite")
+        print("Available: paper, check, fix, lang, content, footnotes, report, html-report, "
+              "template, verify, refs, cross, quotes, spec, csl, validate-csl, lint-csl, cite")
         sys.exit(1)
 
 

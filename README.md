@@ -13,14 +13,17 @@
 
 | 功能 | 说明 |
 |------|------|
+| 一键修复 | `paper` 命令：建目录 → 修复 → 记录改动 → HTML 报告，一步到位（推荐入口） |
 | 格式检测 | 页边距、字体字号、行距、标题层级、三线表、页眉页脚、封面、摘要、目录、致谢 |
-| 自动修复 | 一键修复格式问题，生成修复前后对比报告 |
-| 引文格式化 | CNU《外国文学评论》/ CSL / GB/T 7714 标准 |
-| 引文验证 | 本地 .bib 验证 + OpenAlex/CrossRef/知网/万方外部验证 |
+| 自动修复 | 修复格式问题并生成前后对比报告；保留楷体引文块、参考文献五号(10.5pt)、run-in 摘要正确处理 |
+| 中英符号检查 | 16 类规则引擎：中英文间距、引号/括号配对、全半角混用、**中文语境误用英文标点**等 |
+| 内容结构检查 | 必需章节完整性、摘要字数、关键词数量、缩略语候选 |
+| 引文格式化 | CNU《外国文学评论》/ CSL / GB/T 7714 标准；外文译著 `[国籍]` 标注、出版地补全 |
+| 引文验证 | 本地 .bib 验证 + OpenAlex/CrossRef/知网/万方外部验证 + DOI/字段完整性 |
 | 引文逐字核对 | PDF 出处比对，支持扫描版 OCR + 截图高亮 |
 | 模板生成 | 预配置中文学术论文模板（期刊/学位论文） |
 | 样本解析 | 从格式正确的论文中提取格式规则 |
-| 对比报告 | 6 列对比表 + 修复记录 + 统计摘要 + 引文核对报告 |
+| 对比报告 | HTML 交互式报告（item-level 已修复/未修复）+ Word 对比报告 |
 
 ## 快速开始
 
@@ -32,11 +35,17 @@ cd paper-format
 # 安装依赖
 pip install -r requirements.txt
 
-# 格式检测
+# 一键修复（推荐）：自动建目录、修复、生成 HTML 报告
+python paper_format.py paper 论文.docx --mode journal --bib refs.bib
+
+# 仅格式检测
 python paper_format.py check 论文.docx
 
-# 格式修复
+# 仅格式修复
 python paper_format.py fix 论文.docx --output repaired.docx
+
+# 中英符号检查（16 类规则）
+python paper_format.py lang 论文.docx --rules references/language_rules.yaml
 
 # 生成模板
 python paper_format.py template --mode thesis --output 模板.docx
@@ -86,14 +95,36 @@ python paper_format.py check 论文.docx --mode journal
 ### 完整命令
 
 ```bash
+# 一键修复 + 报告（推荐）：建输出目录、复制副本、修复、生成 HTML 报告
+python paper_format.py paper 论文.docx [--mode thesis|journal] [--spec spec.json] [--bib refs.bib]
+
 # 格式检测
 python paper_format.py check 论文.docx [--mode thesis|journal] [--spec spec.json]
 
 # 格式修复（自动创建副本，不修改原文件）
 python paper_format.py fix 论文.docx --output repaired.docx
 
-# 生成对比报告
+# 中英符号检查（16 类规则，含"中文语境误用英文标点"）
+python paper_format.py lang 论文.docx --rules references/language_rules.yaml --output sym.json
+
+# 内容结构检查（必需章节、摘要字数、关键词）
+python paper_format.py content 论文.docx [--mode thesis|journal]
+
+# 提取并分类脚注
+python paper_format.py footnotes 论文.docx --output footnotes.json
+
+# 生成 HTML 交互式报告（含 before/after）
+python paper_format.py html-report 原始.docx 修复后.docx --repair-records records.json --output 报告.html
+
+# 生成 Word 对比报告
 python paper_format.py report 原始.docx 修复后.docx 报告.docx
+
+# 增强引用检查（DOI 格式 + BibTeX 字段完整性 + URL 可达性）
+python paper_format.py refs 论文.docx --bib refs.bib [--check-urls] --output refs.json
+
+# CSL 结构校验 / 语义检查
+python paper_format.py validate-csl style.csl
+python paper_format.py lint-csl style.csl
 
 # 生成预格式化模板
 python paper_format.py template --mode thesis --output 模板.docx
