@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="note" version="1.0" default-locale="en-US" page-range-format="expanded">
+  <info>
+    <title>Bilingual Note Base</title>
+    <id>https://local.templates/zotero-csl-builder/bilingual-note-base</id>
+    <link href="https://local.templates/zotero-csl-builder/bilingual-note-base" rel="self"/>
+    <author>
+      <name>OpenAI Codex</name>
+    </author>
+    <category citation-format="note"/>
+    <summary>中英混排脚注制底稿。关键是默认英文 locale，中文条目用局部宏，引用和参考文献都采用双 layout 分流。</summary>
+    <updated>2026-05-27T00:00:00+08:00</updated>
+  </info>
+
+  <locale xml:lang="en">
+    <terms>
+      <term name="page-range-delimiter">-</term>
+      <term name="translator" form="short">trans.</term>
+    </terms>
+  </locale>
+
+  <locale xml:lang="zh">
+    <terms>
+      <term name="anonymous">佚名</term>
+      <term name="edition" form="short">版</term>
+      <term name="ibid">同上</term>
+      <term name="in">载</term>
+      <term name="no date">出版时间不详</term>
+      <term name="open-quote">“</term>
+      <term name="close-quote">”</term>
+      <term name="open-inner-quote">‘</term>
+      <term name="close-inner-quote">’</term>
+      <term name="page-range-delimiter">&#8212;</term>
+      <term name="editor" form="short">主编</term>
+      <term name="compiler" form="short">整理</term>
+    </terms>
+  </locale>
+
+  <macro name="author-en">
+    <names variable="author">
+      <name and="text"/>
+      <label form="short" prefix=", "/>
+      <substitute>
+        <names variable="editor"/>
+      </substitute>
+    </names>
+  </macro>
+
+  <macro name="author-zh">
+    <names variable="author">
+      <name delimiter="、"/>
+      <label form="short"/>
+      <substitute>
+        <names variable="editor"/>
+      </substitute>
+    </names>
+  </macro>
+
+  <macro name="title-en">
+    <choose>
+      <if type="article-journal article-magazine article-newspaper chapter paper-conference report" match="any">
+        <text variable="title" quotes="true"/>
+      </if>
+      <else>
+        <text variable="title" font-style="italic"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="title-zh">
+    <text variable="title" prefix="《" suffix="》"/>
+  </macro>
+
+  <macro name="date-en">
+    <choose>
+      <if type="article-journal article-magazine article-newspaper" match="any">
+        <date variable="issued" form="text" date-parts="year-month" prefix="(" suffix=")"/>
+      </if>
+      <else>
+        <date variable="issued" form="text" date-parts="year"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="date-zh">
+    <choose>
+      <if type="article-newspaper" match="any">
+        <date variable="issued" form="text"/>
+      </if>
+      <else>
+        <date variable="issued" form="text" date-parts="year"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="container-periodical-en">
+    <group delimiter=", ">
+      <text variable="container-title" font-style="italic"/>
+      <group delimiter=" ">
+        <label variable="volume" form="short"/>
+        <number variable="volume"/>
+      </group>
+      <group delimiter=" ">
+        <label variable="issue" form="short"/>
+        <number variable="issue"/>
+      </group>
+    </group>
+  </macro>
+
+  <macro name="container-periodical-zh">
+    <text variable="container-title" prefix="《" suffix="》"/>
+    <text variable="section" prefix="（" suffix="）"/>
+    <choose>
+      <if variable="volume">
+        <group delimiter="，">
+          <group>
+            <text value="第"/>
+            <number variable="volume"/>
+            <text value="卷"/>
+            <text value="第"/>
+            <number variable="issue"/>
+            <text value="期"/>
+          </group>
+          <text macro="date-zh"/>
+        </group>
+      </if>
+      <else>
+        <text macro="date-zh"/>
+        <text value="第" prefix=""/>
+        <number variable="issue"/>
+        <text value="期"/>
+      </else>
+    </choose>
+  </macro>
+
+  <macro name="page-en">
+    <choose>
+      <if variable="locator">
+        <text value="pp. "/>
+        <text variable="locator"/>
+      </if>
+      <else-if variable="page">
+        <text value="pp. "/>
+        <text variable="page"/>
+      </else-if>
+    </choose>
+  </macro>
+
+  <macro name="page-zh">
+    <choose>
+      <if variable="locator">
+        <text value="第"/>
+        <text variable="locator"/>
+        <text value="页"/>
+      </if>
+    </choose>
+  </macro>
+
+  <macro name="source-en">
+    <group delimiter=", ">
+      <text macro="author-en"/>
+      <text macro="title-en"/>
+      <choose>
+        <if type="article-journal article-magazine article-newspaper" match="any">
+          <group delimiter=" ">
+            <text macro="container-periodical-en"/>
+            <text macro="date-en"/>
+          </group>
+        </if>
+      </choose>
+      <text macro="page-en"/>
+    </group>
+  </macro>
+
+  <macro name="source-zh">
+    <group delimiter="：">
+      <text macro="author-zh"/>
+      <group delimiter="，">
+        <text macro="title-zh"/>
+        <text macro="container-periodical-zh"/>
+        <text macro="page-zh"/>
+      </group>
+    </group>
+  </macro>
+
+  <citation>
+    <layout delimiter="；" suffix="。" locale="zh">
+      <text macro="source-zh"/>
+    </layout>
+    <layout delimiter="; " suffix=".">
+      <text macro="source-en"/>
+    </layout>
+  </citation>
+
+  <bibliography entry-spacing="0" second-field-align="flush">
+    <layout locale="zh">
+      <text variable="citation-number" prefix="[" suffix="]"/>
+      <text macro="source-zh" suffix="。"/>
+    </layout>
+    <layout>
+      <text variable="citation-number" prefix="[" suffix="]"/>
+      <text macro="source-en" suffix="."/>
+    </layout>
+  </bibliography>
+</style>

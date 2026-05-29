@@ -102,9 +102,27 @@ def _apply_font_to_run(run, chinese="宋体", english="Times New Roman", size_pt
     run.font.size = Pt(size_pt)
 
 
+# CJK faces that carry meaning and must survive body normalization. In Chinese
+# academic typesetting, block quotes / epigraphs are conventionally set in 楷体
+# (sometimes 仿宋); flattening them to 宋体 destroys an intentional distinction the
+# author made. So for these runs we keep the face and only correct the size.
+_PRESERVE_CJK = ("楷", "仿宋")
+
+
 def _apply_body_font(para, chinese="宋体", english="Times New Roman", size=12):
+    from docx.oxml.ns import qn
+    from docx.shared import Pt
     for run in para.runs:
-        _apply_font_to_run(run, chinese=chinese, english=english, size_pt=size)
+        rPr = run._r.find(qn("w:rPr"))
+        cur = None
+        if rPr is not None:
+            rf = rPr.find(qn("w:rFonts"))
+            if rf is not None:
+                cur = rf.get(qn("w:eastAsia"))
+        if cur and any(k in cur for k in _PRESERVE_CJK):
+            run.font.size = Pt(size)          # keep 楷体/仿宋 face, normalize size only
+        else:
+            _apply_font_to_run(run, chinese=chinese, english=english, size_pt=size)
 
 
 def _get_run_font_size(para) -> float | None:
@@ -160,7 +178,7 @@ def _is_section_title(para, keyword_group: str) -> bool:
     return any(kw in text for kw in keywords)
 
 
-def _fix_section_title(para, old_size_pt: float | None = None) -> dict:
+def _fix_section_title(para, old_size_pt: float | None = None, keyword_group: str = "") -> dict:
     """Fix a section title paragraph (center, font size, font family).
     Returns repair record with before/after."""
     from docx.shared import Pt
@@ -168,6 +186,33 @@ def _fix_section_title(para, old_size_pt: float | None = None) -> dict:
 
     record: dict[str, Any] = {}
     target_size = 16  # 三号
+    text = para.text.strip()
+
+    # Run-in abstract guard: many course/journal papers write the abstract as a
+    # single paragraph "摘 要：<整段正文>". The label looks like a section title, but
+    # the bulk of the paragraph is body text. Applying the 16pt heading size to the
+    # whole paragraph (the naive `for run in para.runs` below) silently blows the
+    # entire abstract up to 16pt 黑体 — a real defect we hit in practice. So when we
+    # detect a label + colon followed by substantial inline content, style only the
+    # label and normalize the body to 宋体 at body size instead.
+    colon_idx = next((i for i, ch in enumerate(text) if ch in "：:"), -1)
+    if keyword_group.startswith("abstract") and colon_idx != -1 and len(text) - colon_idx > 15:
+        passed = 0
+        seen_colon = False
+        for run in para.runs:
+            start = passed
+            passed += len(run.text)
+            if not seen_colon:
+                _apply_font_to_run(run, chinese="黑体", english="Times New Roman", size_pt=DEFAULT_BODY_SIZE)
+                run.font.bold = True
+                if start <= colon_idx < passed:
+                    seen_colon = True
+            else:
+                _apply_font_to_run(run, chinese="宋体", english="Times New Roman", size_pt=DEFAULT_BODY_SIZE)
+                run.font.bold = False
+        record["runin_before"] = f"{(old_size_pt or 0):.0f}pt 整段同字号"
+        record["runin_after"] = f"标签黑体{DEFAULT_BODY_SIZE}pt + 正文宋体{DEFAULT_BODY_SIZE}pt"
+        return record
 
     # Fix alignment
     old_align = para.paragraph_format.alignment
@@ -356,7 +401,7 @@ def fix_format(
         for para in doc.paragraphs:
             if _is_section_title(para, keyword_group):
                 old_size = _get_run_font_size(para)
-                rec = _fix_section_title(para, old_size)
+                rec = _fix_section_title(para, old_size, keyword_group)
                 if rec:
                     rec["category"] = "sections"
                     rec["item"] = f"{keyword_group}_title"
@@ -413,6 +458,32 @@ def fix_format(
         except Exception as e:
             records.append({"category": "citations", "item": "citation_repair",
                             "error": f"引用修复出错: {e}"})
+
+    # ---------------------------------------------------------------
+    # Reference font normalization (五号 10.5pt) — ALWAYS, independent of citation
+    # reformatting. The references section must be 10.5pt regardless of whether
+    # citation_repair ran, succeeded, or was skipped (e.g. repair_citations=False on
+    # the .bib path). Doing it here means every path through fix_paper/fix_format
+    # lands references at 10.5pt even if the (fragile) citation step bails out.
+    # ---------------------------------------------------------------
+    try:
+        from scripts.citation_repair import _apply_citation_fonts, _is_list_item_stub
+        ref_norm = detect_references_section(str(working_path))
+        if ref_norm.found:
+            start = ref_norm.section_start or 0
+            end = ref_norm.section_end or len(doc.paragraphs)
+            ref_count = 0
+            for para in doc.paragraphs[start:end]:
+                t = para.text.strip()
+                if not t or _is_list_item_stub(t):
+                    continue
+                _apply_citation_fonts(para)  # 宋体+TNR 10.5pt
+                ref_count += 1
+            if ref_count:
+                records.append({"category": "citations", "item": "reference_font",
+                                "location": "参考文献", "note": f"统一字号为五号10.5pt（{ref_count} 条）"})
+    except Exception as e:
+        records.append({"category": "citations", "item": "reference_font", "error": str(e)})
 
     # ---------------------------------------------------------------
     # Save

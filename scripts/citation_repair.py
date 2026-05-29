@@ -65,7 +65,10 @@ _RE_CITATION_INDEX = re.compile(r"^\[(\d+)\]\s*")
 
 
 def _apply_citation_fonts(para) -> None:
-    """Apply 宋体 (CJK) + Times New Roman (Latin) at run level, 12pt."""
+    """Apply 宋体 (CJK) + Times New Roman (Latin) at run level, 五号 10.5pt.
+
+    参考文献区按惯例用五号(10.5pt)——比正文小四(12pt)略小，与脚注一致。
+    """
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
     from docx.shared import Pt
@@ -79,7 +82,7 @@ def _apply_citation_fonts(para) -> None:
         rFonts.set(qn("w:ascii"), "Times New Roman")
         rFonts.set(qn("w:hAnsi"), "Times New Roman")
         rFonts.set(qn("w:eastAsia"), "宋体")
-        run.font.size = Pt(12)
+        run.font.size = Pt(10.5)
 
 
 def parse_raw_citation(text: str) -> ParsedCitation:
@@ -118,6 +121,25 @@ def parse_raw_citation(text: str) -> ParsedCitation:
     if year_match:
         result["year"] = year_match.group(1)
 
+    # ---- GB/T 7714 title fallback ----
+    # GB/T numeric entries (the dominant export format from 知网/EndNote) write
+    # the title immediately before a [文献类型] marker — e.g. "作者. 题名[M]. 出版社, 年."
+    # — with no 《》/quotes/italics. The CNU-oriented branches below only look for
+    # those markers, so without this fallback the title comes out empty and every
+    # downstream match (local .bib + external API) silently fails. We grab the text
+    # right before the [TYPE] marker, back to the last sentence separator, which
+    # cleanly drops the author prefix even when the author name contains periods
+    # (e.g. "S. T. Joshi. The Modern Weird Tale[M]" → "The Modern Weird Tale").
+    gbt_title = ""
+    gbt_type_m = re.search(
+        r"\[\s*(M|J|D|C|N|R|S|P|G|Z|A|EB|DB|CP)(?:/?(?:OL|DK|MT|CD))?\s*\]",
+        normalized, re.IGNORECASE,
+    )
+    if gbt_type_m:
+        before_type = normalized[: gbt_type_m.start()]
+        seps = [m.end() for m in re.finditer(r"[.\．]\s+|．", before_type)]
+        gbt_title = (before_type[seps[-1]:] if seps else before_type).strip(" .，,")
+
     # ---- Chinese-style citation parsing ----
     if has_chinese:
         # Author: text before the first 《
@@ -125,10 +147,16 @@ def parse_raw_citation(text: str) -> ParsedCitation:
         if author_match:
             result["author"] = author_match.group(1).rstrip("：:，, ").strip()
 
-        # Title: text between first 《 》
+        # Title: text between first 《 》, else GB/T title before [TYPE] marker
         title_match = re.search(r"《(.+?)》", normalized)
         if title_match:
             result["title"] = title_match.group(1).strip()
+        elif gbt_title:
+            result["title"] = gbt_title
+            # GB/T Chinese author = text before the first sentence separator
+            auth_m = re.match(r"^(.+?)[.\．]\s+|^(.+?)．", normalized)
+            if auth_m:
+                result["author"] = (auth_m.group(1) or auth_m.group(2) or "").strip()
 
         # Translator: word(s) between 》， and 译[，]  (e.g. 朱光潜译，)
         trans_match = re.search(r"》，([^，《》]+?)译[，,。]", normalized)
@@ -229,6 +257,20 @@ def parse_raw_citation(text: str) -> ParsedCitation:
             p = pub_info.split(":", 1)
             result["place"] = p[0].strip()
             result["publisher"] = p[1].strip()
+        return result
+
+    # Case 4: GB/T English — "AUTHOR. Title[M]. Place: Publisher, Year."
+    # No quotes/italics; the title sits before the [TYPE] marker.
+    if gbt_title:
+        result["title"] = gbt_title
+        auth_m = re.match(r"^(.+?)[.\．]\s+", normalized[: gbt_type_m.start()])
+        if auth_m:
+            result["author"] = auth_m.group(1).strip()
+        after = normalized[gbt_type_m.end():].lstrip(". ")
+        pub_m = re.search(r"([^,]+?):\s*([^,]+?),\s*(\d{4})", after)
+        if pub_m:
+            result["place"] = pub_m.group(1).strip()
+            result["publisher"] = pub_m.group(2).strip()
         return result
 
     # Fallback: split on comma, grab first segment as author
@@ -548,7 +590,8 @@ def _process_single(
     # 2. Better BibTeX .bib lookup if available
     bib_status = "not_checked"
     if _BIB_ENTRIES and _BIB_TITLE_INDEX:
-        bib_matches = _bib_search(parsed, _BIB_ENTRIES, _BIB_TITLE_INDEX)
+        # search_by_title expects the title string, not the whole ParsedCitation dict.
+        bib_matches = _bib_search(parsed.get("title", "") or "", _BIB_ENTRIES, _BIB_TITLE_INDEX)
         if len(bib_matches) == 1:
             parsed = _merge_bib_data(parsed, bib_matches[0])
             bib_status = "matched"
@@ -639,9 +682,14 @@ def repair_citations_in_docx(
                     if idx_m:
                         formatted = f"[{idx_m.group(1)}] {formatted}"
                     para.text = formatted
-                    _apply_citation_fonts(para)
                     replacement_count += 1
                 break
+        # Normalize the reference font (五号 10.5pt) on EVERY entry, not only the
+        # ones we reformatted. Conservative parsers often decline to rewrite a
+        # citation (returns empty formatted), but the font/size still needs fixing
+        # — otherwise references inherit the 12pt body size and the 10.5pt rule
+        # silently never applies on either the fix_format or fix_paper path.
+        _apply_citation_fonts(para)
         para_idx += 1
 
     if _own_doc:

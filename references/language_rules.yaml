@@ -1,0 +1,228 @@
+# 语言/符号检查规则配置
+# 基于 thesis-skills 的 15 类规则族，适配中文学术论文场景
+#
+# 每条规则支持：
+#   enabled: true/false       是否启用
+#   severity: P1/P2/P3        严重程度
+#   autofix_safe: true/false  是否可安全自动修复
+#   description: 说明
+#   patterns: (可选) 正则模式列表
+
+# ── CJK 与拉丁字符间距 ──────────────────────────────────────
+cjk_latin_spacing:
+  enabled: true
+  severity: P2
+  autofix_safe: true
+  description: "中文与英文/数字之间应有一个半角空格，但中文标点与英文之间不加"
+  rules:
+    - name: "missing_space_between_cjk_and_latin"
+      pattern: '([一-鿿　-〿＀-￯])([A-Za-z0-9])'
+      fix: '\1 \2'
+      description: "中文后紧跟英文/数字，缺少空格"
+    - name: "missing_space_between_latin_and_cjk"
+      pattern: '([A-Za-z0-9])([一-鿿　-〿＀-￯])'
+      fix: '\1 \2'
+      description: "英文/数字后紧跟中文，缺少空格"
+    - name: "extra_space_after_cjk_punctuation"
+      pattern: '([。，；：！？、])\s+([A-Za-z])'
+      fix: '\1\2'
+      description: "中文标点后不应有空格（英文除外）"
+
+# ── 重复标点 ────────────────────────────────────────────────
+repeated_punctuation:
+  enabled: true
+  severity: P2
+  autofix_safe: false
+  description: "检测连续重复的标点符号"
+  patterns:
+    - '。。。。'    # 应为省略号……
+    - '。。'        # 双句号
+    - '、、'        # 双顿号
+    - '！！'        # 双感叹号
+    - '？？'        # 双问号
+    - ',,'          # 双逗号
+    - '\.\.\.'      # 三个句点应为省略号
+
+# ── 引号风格混用 ────────────────────────────────────────────
+mixed_quote_style:
+  enabled: true
+  severity: P2
+  autofix_safe: false
+  description: "全文引号风格应统一：弯引号或直角引号，不混用"
+  check_logic: "统计全文中弯引号和直角引号各自出现次数，两种都出现则标记混用"
+
+# ── 弱表达/冗余短语 ────────────────────────────────────────
+weak_phrases:
+  enabled: true
+  severity: P3
+  autofix_safe: false
+  description: "学术写作中应避免的弱表达或冗余短语"
+  patterns:
+    - '众所周知'
+    - '不言而喻'
+    - '显而易见'
+    - '毋庸置疑'
+    - '笔者认为'      # 部分期刊不鼓励
+    - '值得指出的是'
+    - '需要特别指出'
+    - '有必要指出'
+    - '综上所述'       # 过度使用
+    - '总而言之'
+
+# ── 括号不配对 ──────────────────────────────────────────────
+bracket_mismatch:
+  enabled: true
+  severity: P1
+  autofix_safe: false
+  description: "检测括号是否配对，左右类型是否一致"
+  pairs:
+    - ['（', '）']
+    - ['(', ')']
+    - ['《', '》']
+    - ['「', '」']
+    - ['【', '】']
+    - ['[', ']']
+    - ['{', '}']
+
+# ── 引号不配对 ──────────────────────────────────────────────
+quote_mismatch:
+  enabled: true
+  severity: P1
+  autofix_safe: false
+  description: "检测引号是否配对"
+  pairs:
+    - ['"', '"']
+    - ['「', '」']
+    - ["'", "'"]
+
+# ── 书名号与斜体混用 ──────────────────────────────────────
+booktitle_mixed_style:
+  enabled: true
+  severity: P3
+  autofix_safe: false
+  description: "中文书名应统一用书名号《》，不应与英文斜体混用"
+
+# ── 单位间距 ──────────────────────────────────────────────
+unit_spacing:
+  enabled: true
+  severity: P3
+  autofix_safe: true
+  description: "数字与单位之间应有空格（如 5 cm），但百分号和度数除外"
+  rules:
+    - name: "missing_space_before_unit"
+      pattern: '(\d)(cm|mm|m|km|kg|g|mg|L|mL|Hz|kHz|MHz|GHz|Pa|kPa|MPa|GPa|N|J|W|V|A|Ω|F|H|rad|sr|mol|cd|lx|Bq|Gy|Sv|K|°C|eV|bit|B|KB|MB|GB|TB|dpi|ppi)\b'
+      fix: '\1 \2'
+      description: "数字与物理单位之间缺少空格"
+      exceptions:
+        - '°C'     # 通常不加空格
+        - '%'      # 百分号紧跟数字
+
+# ── 数字范围风格 ──────────────────────────────────────────
+number_range_style:
+  enabled: true
+  severity: P3
+  autofix_safe: false
+  description: "数字范围应使用连接号（–），而非短横线（-）或波浪号（~）"
+  patterns:
+    - '(\d+)\s*[-~]\s*(\d+)'  # 如 1-5 或 1~5，应为 1–5
+
+# ── 列举标点风格 ──────────────────────────────────────────
+enum_punctuation_style:
+  enabled: true
+  severity: P3
+  autofix_safe: false
+  description: "中文列举项之间应使用顿号，最后一项前用'和'或'及'"
+
+# ── 省略号风格 ──────────────────────────────────────────────
+ellipsis_style:
+  enabled: true
+  severity: P2
+  autofix_safe: true
+  description: "中文省略号应为……（两个三连点），英文为 ...（三个句点）"
+  rules:
+    - name: "three_dots_to_ellipsis"
+      pattern: '\.{3}'
+      fix_zh: '……'
+      fix_en: '...'
+      description: "三个句点应转为标准省略号"
+
+# ── 破折号/连接号风格 ──────────────────────────────────────
+dash_style:
+  enabled: true
+  severity: P2
+  autofix_safe: false
+  description: "破折号应为——（两个全角），连接号应为–（半角en-dash），减号为-"
+  rules:
+    - name: "two_hyphens_as_dash"
+      pattern: '--'
+      fix: '——'
+      description: "两个短横线应为破折号"
+    - name: "tilde_as_range"
+      pattern: '(\d+)\s*~\s*(\d+)'
+      fix: '\1–\2'
+      description: "波浪号范围应为连接号"
+
+# ── 中英文符号间距 ──────────────────────────────────────────
+zh_en_symbol_spacing:
+  enabled: true
+  severity: P2
+  autofix_safe: true
+  description: "中文标点与英文之间、英文标点与中文之间的间距规范"
+  rules:
+    - name: "space_between_zh_punct_and_en"
+      pattern: '([。，；：！？、]) ([A-Za-z])'
+      description: "中文标点后紧跟英文时不应有空格"
+      note: "此规则仅用于检测，修复需判断语境"
+
+# ── 全角半角混用 ──────────────────────────────────────────
+fullwidth_halfwidth_mix:
+  enabled: true
+  severity: P2
+  autofix_safe: false
+  description: "同一段落中不应混用全角和半角的同类标点"
+  rules:
+    - name: "mixed_comma"
+      description: "同一段落中逗号全角/半角混用"
+      check_logic: "检测段落中同时出现 ， 和 ,"
+    - name: "mixed_period"
+      description: "同一段落中句号全角/半角混用"
+      check_logic: "检测段落中同时出现 。 和 ."
+    - name: "mixed_semicolon"
+      description: "同一段落中分号全角/半角混用"
+      check_logic: "检测段落中同时出现 ； 和 ;"
+    - name: "mixed_colon"
+      description: "同一段落中冒号全角/半角混用"
+      check_logic: "检测段落中同时出现 ： 和 :"
+    - name: "mixed_paren"
+      description: "同一段落中括号全角/半角混用"
+      check_logic: "检测段落中同时出现（ ）和 ( )"
+
+# ── 连接词黑名单 ──────────────────────────────────────────
+connector_blacklist_simple:
+  enabled: true
+  severity: P3
+  autofix_safe: false
+  description: "学术写作中应谨慎使用的连接词或过渡词"
+  patterns:
+    - '然后'       # 口语化
+    - '所以'       # 口语化，应用"因此"
+    - '但是'       # 部分场景可用"然而"
+    - '而且'       # 部分场景可用"并且"
+    - '其实'       # 口语化
+    - ' basically'  # 英文弱表达
+    - ' obviously'
+    - ' of course'
+    - ' needless to say'
+
+# ── 中文语境误用英文标点 ──────────────────────────────────
+en_punct_in_cjk:
+  enabled: true
+  severity: P2
+  autofix_safe: false
+  description: "中文语境中误用英文标点：如英文引号\"\"包裹中文句子、中文后用英文逗号/句号/括号等（应用中文标点）"
+  check_logic: |
+    基于"与中文字符直接邻接"判断，高精度抓取误用，不误伤中文里嵌入的英文短语：
+    1) 中文后紧跟英文 , ; : ? ! → 应为 ，；：？！
+    2) 中文后紧跟英文句点 . （排除小数/省略号/缩写）→ 应为 。
+    3) 英文直引号 "" 或 '' 包裹含中文的内容 → 应为 “”/「」 或 ‘’
+    4) 英文圆括号 () 紧贴中文 → 应为全角（）

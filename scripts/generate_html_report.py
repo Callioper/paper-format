@@ -158,15 +158,42 @@ def generate_html_report(
     issues = format_issues.get("issues", {})
     total_issues = sum(len(v) for v in issues.values())
 
-    # Determine which categories were fixed
-    fixed_categories = set()
+    # Which repair-record categories actually ran (no error)?
+    repair_cats = set()
     if repair_records:
         for rec in repair_records:
             if not rec.get("error"):
-                fixed_categories.add(rec.get("category", ""))
+                repair_cats.add(rec.get("category", ""))
 
-    # Build pie chart data
-    fixed_count = sum(len(v) for k, v in issues.items() if k in fixed_categories)
+    # Resolve at the ITEM level, not the category level. check_format and fix_format
+    # use different category vocabularies (检测说"styles/abstract"，修复记录说
+    # "paragraphs/sections")，所以纯按类别名匹配会把已修复的正文字号、摘要标题误报为未修复。
+    # 这个别名表把"修复记录类别"映射到"它实际解决了哪些检测项"，并保留确实没自动修的项
+    # （如标题样式缺失）。
+    def _issue_resolved(cat: str, item: str) -> bool:
+        item = item or ""
+        if cat == "page_setup":
+            return "page_setup" in repair_cats
+        if cat == "styles":
+            # 正文字号由 fix_format 的 paragraphs(font_indent_spacing) 修复；
+            # heading_*_missing 属结构问题，不自动修。
+            if "body_font" in item or "font_size" in item:
+                return "paragraphs" in repair_cats
+            return False
+        if cat == "abstract":
+            return "sections" in repair_cats        # 摘要标题/run-in 由 sections 修复
+        if cat == "paragraphs":
+            return "paragraphs" in repair_cats
+        # tables / citations / footnotes / headers_footers 等同名直配
+        return cat in repair_cats
+
+    # Per-item resolution map: (cat, idx) -> bool
+    resolved_map = {}
+    for cat, items in issues.items():
+        for idx, it in enumerate(items):
+            resolved_map[(cat, idx)] = _issue_resolved(cat, it.get("item", "") if isinstance(it, dict) else "")
+
+    fixed_count = sum(1 for v in resolved_map.values() if v)
     remaining = total_issues - fixed_count
     pie_data = {"已修复": fixed_count, "需人工处理": remaining} if fixed_count > 0 else {"需人工处理": remaining}
 
@@ -275,15 +302,20 @@ def generate_html_report(
     <thead><tr><th>类别</th><th>问题数</th><th>修复操作</th><th>状态</th></tr></thead>
     <tbody>"""
 
-    # Summary table rows
+    # Summary table rows — resolved count is computed per item, so a category can be
+    # partially fixed (e.g. styles: 正文字号已修复 but 标题样式缺失 未修复).
     for cat, items in issues.items():
         count = len(items)
         if count == 0:
             continue
         cat_name = CAT_NAMES.get(cat, cat)
-        if cat in fixed_categories:
+        cat_fixed = sum(1 for idx in range(count) if resolved_map.get((cat, idx)))
+        if cat_fixed == count:
             desc = REPAIR_DESC.get(cat, "已修复")
             badge = _status_badge("已修复")
+        elif cat_fixed > 0:
+            desc = REPAIR_DESC.get(cat, "部分修复")
+            badge = f'{_status_badge("已修复")} {cat_fixed}/{count}'
         else:
             desc = "-"
             badge = _status_badge("需人工处理")
@@ -334,7 +366,13 @@ def generate_html_report(
 </div>"""
 
     # ========== Remaining Issues ==========
-    remaining_issues = {k: v for k, v in issues.items() if v and k not in fixed_categories}
+    # Item-level: only keep issues that were NOT resolved (so 已修复的正文字号/摘要标题
+    # 不再出现在"未修复"清单里，而确实没修的标题样式缺失仍保留)。
+    remaining_issues = {}
+    for cat, items in issues.items():
+        unresolved = [it for idx, it in enumerate(items) if not resolved_map.get((cat, idx))]
+        if unresolved:
+            remaining_issues[cat] = unresolved
     if remaining_issues:
         html += """
 <div class="card section">

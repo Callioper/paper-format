@@ -1,0 +1,30 @@
+{
+  "description": "中英混排脚注制的最小回归样例。label 可直接映射到 smoke_test_zotero_style.py 的 --item 参数。",
+  "cases": [
+    {
+      "label": "zh_journal",
+      "expected_type": "journalArticle",
+      "why": "检查中文期刊不会误出 vol./no. 或 URL。"
+    },
+    {
+      "label": "zh_book",
+      "expected_type": "book",
+      "why": "检查中文图书的出版地、出版社、年份、页码顺序。"
+    },
+    {
+      "label": "en_journal",
+      "expected_type": "journalArticle",
+      "why": "检查英文月份、pp.、vol./no.、英文句号。"
+    },
+    {
+      "label": "en_book",
+      "expected_type": "book",
+      "why": "检查英文作者顺序、斜体书名和出版信息。"
+    },
+    {
+      "label": "webpage",
+      "expected_type": "webpage",
+      "why": "检查只有电子文献才输出 URL 和访问日期。"
+    }
+  ]
+}

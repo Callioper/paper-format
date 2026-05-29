@@ -128,3 +128,45 @@ def extract_footnotes(docx_path: str | Path) -> list[FootnoteItem]:
 
     items.sort(key=lambda x: x.footnote_id)
     return items
+
+
+def main() -> None:
+    """CLI: extract footnotes to JSON (or print a summary).
+
+    The classification flags (is_subsequent / is_prose_only) let a reviewer
+    quickly spot which footnotes are full citations worth checking against the
+    CNU format vs. shortened re-citations or pure prose.
+    """
+    import argparse
+    import json
+    import sys
+    from dataclasses import asdict
+
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+    parser = argparse.ArgumentParser(description="Extract and classify footnotes from a .docx file.")
+    parser.add_argument("docx", help="Path to the .docx file")
+    parser.add_argument("--output", "-o", help="Write footnotes as JSON to this path; otherwise print a summary")
+    args = parser.parse_args()
+
+    items = extract_footnotes(args.docx)
+    payload = {
+        "footnote_count": len(items),
+        "footnotes": [asdict(it) for it in items],
+    }
+
+    if args.output:
+        Path(args.output).write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(f"提取 {len(items)} 条脚注 → {args.output}")
+    else:
+        print(f"提取 {len(items)} 条脚注：")
+        for it in items:
+            tag = "再次引证" if it.is_subsequent else ("纯说明" if it.is_prose_only else "完整引文")
+            print(f"  [{it.footnote_id}] ({tag}) {it.cite_text[:80]}")
+
+
+if __name__ == "__main__":
+    main()
