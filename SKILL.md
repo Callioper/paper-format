@@ -390,14 +390,15 @@ python scripts/check_language.py "论文_copy.docx" --rules references/language_
 ### Step 4.6：假排版清理
 
 "假排版"指用排版无关手段冒充版式（空段堆叠、段首手工空格、段内手工换行、行尾空格），
-会让样式系统失效、跨设备错位，必须在统一样式前清掉（借鉴 cn-paper-typesetter）。
+会让样式系统失效、跨设备错位（借鉴 cn-paper-typesetter）。
+
+**这一步通常无需手动跑**：`fix_format`（以及一键入口 `fix_paper`）会在 Step 5 统一样式之后、保存之前**自动**清理高确定性项（折叠连续空段、去段首/行尾手工空格），并记入修复记录。段内手工换行(w:br)只标记不自动删（可能是有意换行，需人工确认）。
+
+仅当你想在修复前**单独查看**有哪些假排版（生成报告、决定是否人工干预）时，才单独运行检测脚本：
 
 ```bash
 python scripts/check_fake_layout.py "论文_copy.docx" --output "输出目录/fake_layout.json"
 ```
-
-`fix_format` 会在统一样式后自动清理高确定性项（折叠连续空段、去段首/行尾手工空格）；
-段内手工换行(w:br)只标记不自动删（可能是有意换行，需人工确认）。
 
 ### Step 5：自动修复
 

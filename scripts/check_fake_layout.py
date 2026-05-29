@@ -95,19 +95,33 @@ def clean_fake_layout(doc) -> int:
             actions += 1
         prev_blank = blank
 
-    # 2) 段首手工空格 + 3) 行尾空格：改写首/尾 run 文本
+    # 2) 段首手工空格 + 3) 行尾空格
+    # 段首/段尾的手工空格可能跨多个 run（Word 常把空格单独拆成一个 run）。
+    # 只改 runs[0]/runs[-1] 会漏掉这种情况，且使动作计数与实际不符。
+    # 因此从两端逐个 run 推进：整段为空白的 run 清空并继续，遇到含实义内容的
+    # run 则 strip 其外侧空白后停止。每段最多计 1 次首部 + 1 次尾部动作。
     for p in doc.paragraphs:
         if not p.text.strip() or not p.runs:
             continue
-        first = p.runs[0]
-        stripped = first.text.lstrip(_LEADING_SPACE)
-        if stripped != first.text:
-            first.text = stripped
+        # 段首
+        if p.text[:1] in _LEADING_SPACE:
+            for run in p.runs:
+                if run.text == "":
+                    continue
+                new = run.text.lstrip(_LEADING_SPACE)
+                run.text = new
+                if new != "":  # 该 run 含实义内容，段首空白处理完毕
+                    break
             actions += 1
-        last = p.runs[-1]
-        rstripped = last.text.rstrip(_LEADING_SPACE)
-        if rstripped != last.text:
-            last.text = rstripped
+        # 段尾
+        if p.text[-1:] in _LEADING_SPACE:
+            for run in reversed(p.runs):
+                if run.text == "":
+                    continue
+                new = run.text.rstrip(_LEADING_SPACE)
+                run.text = new
+                if new != "":
+                    break
             actions += 1
 
     return actions

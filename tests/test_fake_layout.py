@@ -54,6 +54,19 @@ def test_detects_trailing_space(tmp_path):
     assert any(i["type"] == "trailing_space" for i in res["issues"])
 
 
+def test_clean_strips_leading_spaces_across_multiple_runs(tmp_path):
+    # Word 常把段首空格拆成独立 run；清理必须跨 run 生效，不能只看 runs[0]
+    doc = Document()
+    p = doc.add_paragraph("")
+    p.add_run("　　")          # 纯空格 run
+    p.add_run("正文内容在这里。")  # 实义内容在后续 run
+    clean_fake_layout(doc)
+    out = tmp_path / "m.docx"
+    doc.save(str(out))
+    d2 = Document(str(out))
+    assert d2.paragraphs[0].text.startswith("正文内容")
+
+
 def test_clean_doc_has_no_issues(tmp_path):
     doc = Document()
     doc.add_paragraph("正常段落一。")
